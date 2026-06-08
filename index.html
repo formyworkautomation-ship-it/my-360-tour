@@ -1,59 +1,68 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مشروع الجولة الافتراضية الجبار</title>
-    <!-- مكتبة العرض 360 -->
-    <script src="https://www.marzipano.net/demos/common/es5-shim.js"></script>
-    <script src="https://www.marzipano.net/demos/common/eventShim.js"></script>
-    <script src="https://www.marzipano.net/demos/common/requestAnimationFrameShim.js"></script>
+    <title>مشروع الجولة الجبار - نسخة التصحيح</title>
     <script src="https://www.marzipano.net/marzipano.js"></script>
-    <!-- مكتبة الربط مع سوبابيز -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body, html, #pano { height: 100%; margin: 0; overflow: hidden; background: #000; }
-        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-family: Arial; }
+        body, html, #pano { height: 100%; margin: 0; overflow: hidden; background: #111; }
+        #status { 
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            color: white; font-family: Arial, sans-serif; text-align: center; z-index: 10;
+            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px;
+        }
     </style>
 </head>
 <body>
-    <div id="loading">جاري تحضير التجربة الـ 360...</div>
+    <div id="status">جاري الاتصال بقاعدة البيانات...</div>
     <div id="pano"></div>
 
     <script>
-        // مفاتيحك الخاصة اللي إنت بعتها
         const SUPABASE_URL = 'https://ejvnmawlifhdytktdzer.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqdm5tYXdsaWZoZHl0a3RkemVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzA3MTksImV4cCI6MjA5NjQ0NjcxOX0.KmcecpPi4gl453z0hVmF8Ma5CHYLYJ5SU4uDWJrEbzQ';
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // ربط صحيح ومؤمن
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function initTour() {
-            // 1. هنجيب بيانات أول صورة من الجدول اللي إنت عملته
-            const { data, error } = await supabase.from('scenes').select('*').limit(1).single();
-
-            if (error || !data) {
-                document.getElementById('loading').innerText = "خطأ: تأكد من إضافة صورة في جدول scenes";
-                return;
-            }
-
-            // 2. تشغيل محرك الـ 360
-            const panoElement = document.getElementById('pano');
-            const viewer = new Marzipano.Viewer(panoElement);
+        async function start() {
+            const statusLabel = document.getElementById('status');
             
-            const source = Marzipano.Source.create({
-                type: 'image',
-                url: data.image_url // اللينك اللي إنت حطيته في الجدول
-            });
+            try {
+                // 1. محاولة جلب البيانات
+                statusLabel.innerText = "جاري سحب بيانات الغرفة...";
+                const { data, error } = await _supabase.from('scenes').select('*').limit(1).single();
 
-            const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
-            const view = new Marzipano.RectilinearView({ yaw: data.initial_yaw, pitch: data.initial_pitch });
+                if (error) throw error;
+                if (!data) {
+                    statusLabel.innerHTML = "الجدول فاضي! <br> روح لـ Supabase وضيف صف جديد (Row) في جدول scenes";
+                    return;
+                }
 
-            const scene = viewer.createScene({ source, geometry, view });
-            scene.switchTo();
-            document.getElementById('loading').style.display = 'none';
+                statusLabel.innerText = "تم العثور على الصورة، جاري التحميل...";
+
+                // 2. إعداد العارض
+                const viewer = new Marzipano.Viewer(document.getElementById('pano'));
+                const source = Marzipano.Source.create({ type: 'image', url: data.image_url });
+                const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
+                const view = new Marzipano.RectilinearView({ yaw: data.initial_yaw || 0, pitch: data.initial_pitch || 0 });
+
+                const scene = viewer.createScene({ source, geometry, view });
+                
+                // التأكد من تحميل الصورة
+                scene.switchTo(() => {
+                    statusLabel.style.display = 'none';
+                    console.log("تم التحميل بنجاح!");
+                });
+
+            } catch (err) {
+                console.error(err);
+                statusLabel.innerHTML = "حصلت مشكلة: <br>" + (err.message || "تأكد من إعدادات الـ Storage والـ RLS");
+            }
         }
 
-        initTour();
+        start();
     </script>
 </body>
 </html>
