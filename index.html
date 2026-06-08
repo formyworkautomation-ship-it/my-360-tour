@@ -2,64 +2,72 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>العودة للمنظومة</title>
+    <title>المعمار الجبار - نسخة العودة</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
-    <!-- روابط المحرك من الموقع الرسمي مباشرة كما كانت في مشروعك القديم -->
+    <!-- الروابط دي هي اللي كانت شغالة عندك في المنظومة القديمة -->
     <script src="https://www.marzipano.net/demos/common/es5-shim.js"></script>
     <script src="https://www.marzipano.net/marzipano.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         body, html, #pano { height: 100%; margin: 0; overflow: hidden; background: #000; }
-        #overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.8); color: white; display: flex; 
-            align-items: center; justify-content: center; z-index: 1000;
-            font-family: sans-serif; text-align: center;
+        #loading { 
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            color: white; font-family: sans-serif; z-index: 10; text-align: center;
         }
     </style>
 </head>
 <body>
-    <div id="overlay">جاري محاولة تشغيل الصورة...</div>
+    <div id="loading">جاري استعادة المنظومة...</div>
     <div id="pano"></div>
 
     <script>
-        const SUPABASE_URL = 'https://ejvnmawlifhdytktdzer.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqdm5tYXdsaWZoZHl0a3RkemVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzA3MTksImV4cCI6MjA5NjQ0NjcxOX0.KmcecpPi4gl453z0hVmF8Ma5CHYLYJ5SU4uDWJrEbzQ';
+        // مفاتيحك اللي مش هتتغير
+        const S_URL = 'https://ejvnmawlifhdytktdzer.supabase.co';
+        const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqdm5tYXdsaWZoZHl0a3RkemVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzA3MTksImV4cCI6MjA5NjQ0NjcxOX0.KmcecpPi4gl453z0hVmF8Ma5CHYLYJ5SU4uDWJrEbzQ';
 
-        function initApp() {
-            const overlay = document.getElementById('overlay');
+        async function init() {
+            const loadLabel = document.getElementById('loading');
 
-            // فحص وجود المحرك
+            // فحص وجود المحرك (Marzipano)
             if (typeof Marzipano === 'undefined') {
-                overlay.innerHTML = "المحرك لسه مش راضي يوصل..<br>جاري المحاولة خلال ثواني...";
-                setTimeout(initApp, 2000);
+                loadLabel.innerText = "المحرك تائه.. جاري إعادة المحاولة...";
+                setTimeout(init, 1000);
                 return;
             }
 
-            const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            const supabaseClient = supabase.createClient(S_URL, S_KEY);
 
-            client.from('scenes').select('*').limit(1).single()
-            .then(({ data, error }) => {
+            try {
+                // جلب البيانات
+                const { data, error } = await supabaseClient.from('scenes').select('*').limit(1).single();
                 if (error) throw error;
-                
+
+                // إعداد العارض (Viewer)
                 const viewer = new Marzipano.Viewer(document.getElementById('pano'));
-                const source = Marzipano.Source.create({ type: 'image', url: data.image_url });
+                
+                // الطريقة اللي كانت شغالة في مشروعك القديم 100%
+                const source = Marzipano.Source.create({
+                    type: 'image',
+                    url: data.image_url
+                });
+                
                 const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
                 const view = new Marzipano.RectilinearView({ yaw: 0, pitch: 0 });
 
                 const scene = viewer.createScene({ source, geometry, view });
                 scene.switchTo();
                 
-                overlay.style.display = 'none';
-            })
-            .catch(err => {
-                overlay.innerHTML = "حدث خطأ في البيانات: " + err.message;
-            });
+                loadLabel.style.display = 'none';
+                console.log("المنظومة تعمل بنجاح!");
+
+            } catch (err) {
+                loadLabel.innerHTML = "<b style='color:red'>خطأ في البيانات:</b><br>" + err.message;
+            }
         }
 
-        window.onload = initApp;
+        window.onload = init;
     </script>
 </body>
 </html>
