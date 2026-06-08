@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المنظومة الجبارة - نسخة الحسم</title>
+    <title>منظومة الجولة - نسخة الحسم النهائي</title>
     
-    <!-- محاولة تحميل المحرك من 3 مصادر مختلفة لضمان الوصول -->
-    <script src="https://cdn.jsdelivr.net/npm/marzipano@0.10.2/dist/marzipano.js"></script>
+    <!-- روابط المحرك الأساسية -->
+    <script src="https://www.marzipano.net/marzipano.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -14,12 +14,13 @@
         #status { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             color: white; font-family: sans-serif; text-align: center; z-index: 100;
-            background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px; border: 2px solid #ff0000;
+            background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px; border: 2px solid #333;
         }
+        .error-msg { color: #ff4d4d; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="status">جاري فحص المحرك.. ثواني وهتتحل</div>
+    <div id="status">جاري تشغيل المنظومة الاحترافية...</div>
     <div id="pano"></div>
 
     <script>
@@ -29,40 +30,59 @@
         async function startEngine() {
             const label = document.getElementById('status');
 
-            // تأكيد وجود المحرك
-            if (typeof Marzipano === 'undefined') {
-                label.innerHTML = "<b style='color:red'>المحرك لسه مش ظاهر!</b><br>جرب تفتح اللينك ده من الموبايل أو متصفح تاني (Chrome)";
+            // 1. فحص وجود المحرك (بدون شروط معقدة)
+            if (typeof window.Marzipano === 'undefined') {
+                label.innerHTML = "<span class='error-msg'>المحرك لم يتحمل بعد..</span><br>تأكد من اتصال الإنترنت أو جرب متصفح Chrome.";
                 return;
             }
 
-            label.innerText = "المحرك اشتغل! جاري جلب الصورة من سوبابيز...";
+            label.innerText = "المحرك جاهز.. جاري سحب صورتك الـ 360...";
 
             const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
             try {
                 const { data, error } = await _supabase.from('scenes').select('*').limit(1).single();
                 if (error) throw error;
+                if (!data) {
+                    label.innerHTML = "الجدول فاضي! ضيف بيانات في Supabase.";
+                    return;
+                }
 
-                label.innerText = "بياناتك سليمة.. جاري رسم الـ 360...";
+                label.innerText = "جاري رسم العالم الافتراضي...";
 
+                // --- الحل الجذري: استخدام الـ Constructors المباشرة بدلاً من .create ---
                 const viewer = new Marzipano.Viewer(document.getElementById('pano'));
-                const source = Marzipano.Source.create({ type: 'image', url: data.image_url });
+                
+                // بديل لـ Marzipano.Source.create
+                const source = new Marzipano.ImageUrlSource(function(tile) {
+                    return { url: data.image_url };
+                });
+
+                // بديل لـ Marzipano.EquirectGeometry
                 const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
+                
                 const view = new Marzipano.RectilinearView({ yaw: 0, pitch: 0 });
 
-                const scene = viewer.createScene({ source, geometry, view });
+                const scene = viewer.createScene({
+                    source: source,
+                    geometry: geometry,
+                    view: view
+                });
+
                 scene.switchTo();
                 
+                // إخفاء رسالة التحميل
                 label.style.display = 'none';
 
             } catch (err) {
-                label.innerHTML = "مشكلة في البيانات: " + err.message;
+                console.error(err);
+                label.innerHTML = "<span class='error-msg'>مشكلة في البيانات:</span><br>" + err.message;
             }
         }
 
-        // تشغيل بعد التأكد من تحميل الصفحة
+        // تشغيل المنظومة بعد ثانية واحدة لضمان استقرار كل شيء
         window.onload = () => {
-            setTimeout(startEngine, 1000); // استراحة ثانية للتأكد من المكتبات
+            setTimeout(startEngine, 1000);
         };
     </script>
 </body>
