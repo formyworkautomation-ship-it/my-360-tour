@@ -3,81 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المنظومة الجبارة - النسخة الحديدية</title>
+    <title>المنظومة الجبارة - نسخة الحسم</title>
     
-    <!-- تحميل المكتبات بأكثر طريقة مستقرة ممكنة -->
-    <script src="https://www.marzipano.net/demos/common/es5-shim.js"></script>
-    <script src="https://www.marzipano.net/marzipano.js"></script>
+    <!-- محاولة تحميل المحرك من 3 مصادر مختلفة لضمان الوصول -->
+    <script src="https://cdn.jsdelivr.net/npm/marzipano@0.10.2/dist/marzipano.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         body, html, #pano { height: 100%; margin: 0; overflow: hidden; background: #000; }
         #status { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            color: white; font-family: sans-serif; text-align: center; z-index: 10;
-            background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px;
-            border: 2px solid #555; line-height: 1.6;
+            color: white; font-family: sans-serif; text-align: center; z-index: 100;
+            background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px; border: 2px solid #ff0000;
         }
-        .error { color: #ff4d4d; }
     </style>
 </head>
 <body>
-    <div id="status">جاري فحص المحرك والاتصال بالسيرفر...</div>
+    <div id="status">جاري فحص المحرك.. ثواني وهتتحل</div>
     <div id="pano"></div>
 
     <script>
         const SUPABASE_URL = 'https://ejvnmawlifhdytktdzer.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqdm5tYXdsaWZoZHl0a3RkemVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzA3MTksImV4cCI6MjA5NjQ0NjcxOX0.KmcecpPi4gl453z0hVmF8Ma5CHYLYJ5SU4uDWJrEbzQ';
 
-        function start() {
+        async function startEngine() {
             const label = document.getElementById('status');
 
-            // 1. التأكد من أن المحرك وكل ملحقاته جاهزة
+            // تأكيد وجود المحرك
             if (typeof Marzipano === 'undefined') {
-                label.innerHTML = "<span class='error'>المحرك لسه مجاش!</span><br>جاري المحاولة مرة تانية...";
-                setTimeout(start, 2000);
+                label.innerHTML = "<b style='color:red'>المحرك لسه مش ظاهر!</b><br>جرب تفتح اللينك ده من الموبايل أو متصفح تاني (Chrome)";
                 return;
             }
 
-            label.innerText = "المحرك جاهز! جاري سحب بياناتك من سوبابيز...";
+            label.innerText = "المحرك اشتغل! جاري جلب الصورة من سوبابيز...";
 
             const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            _supabase.from('scenes').select('*').limit(1).single()
-            .then(({ data, error }) => {
+            try {
+                const { data, error } = await _supabase.from('scenes').select('*').limit(1).single();
                 if (error) throw error;
-                if (!data) throw new Error("مفيش بيانات في جدول scenes");
 
-                label.innerText = "جاري تحويل الصورة لـ 360 درجة...";
+                label.innerText = "بياناتك سليمة.. جاري رسم الـ 360...";
 
-                // --- الجزء السحري الجديد (بدون استخدام كلمة create الملعونة) ---
                 const viewer = new Marzipano.Viewer(document.getElementById('pano'));
-                
-                // هنستخدم الطريقة المباشرة لتعريف الصورة
-                const source = new Marzipano.ImageUrlSource.withSimpleUrl(data.image_url);
+                const source = Marzipano.Source.create({ type: 'image', url: data.image_url });
                 const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
-                const view = new Marzipano.RectilinearView({ 
-                    yaw: data.initial_yaw || 0, 
-                    pitch: data.initial_pitch || 0 
-                });
+                const view = new Marzipano.RectilinearView({ yaw: 0, pitch: 0 });
 
-                const scene = viewer.createScene({
-                    source: source,
-                    geometry: geometry,
-                    view: view
-                });
-
+                const scene = viewer.createScene({ source, geometry, view });
                 scene.switchTo();
+                
                 label.style.display = 'none';
-                // ------------------------------------------------------------
-            })
-            .catch(err => {
-                label.innerHTML = "<span class='error'>حصلت مشكلة:</span><br>" + err.message;
-                console.error("Debug Error:", err);
-            });
+
+            } catch (err) {
+                label.innerHTML = "مشكلة في البيانات: " + err.message;
+            }
         }
 
-        window.onload = start;
+        // تشغيل بعد التأكد من تحميل الصفحة
+        window.onload = () => {
+            setTimeout(startEngine, 1000); // استراحة ثانية للتأكد من المكتبات
+        };
     </script>
 </body>
 </html>
