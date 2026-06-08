@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منظومة الجولة الجبارة - النسخة القاتلة</title>
+    <title>المنظومة الجبارة - النسخة الحديدية</title>
     
-    <!-- تحميل المحرك من مصدر عالمي ومستقر جداً (Unpkg) -->
-    <script src="https://unpkg.com/marzipano@0.10.2/dist/marzipano.js"></script>
-    <!-- تحميل مكتبة سوبابيز -->
+    <!-- تحميل المكتبات بأكثر طريقة مستقرة ممكنة -->
+    <script src="https://www.marzipano.net/demos/common/es5-shim.js"></script>
+    <script src="https://www.marzipano.net/marzipano.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -16,13 +16,13 @@
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             color: white; font-family: sans-serif; text-align: center; z-index: 10;
             background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px;
-            border: 2px solid #555;
+            border: 2px solid #555; line-height: 1.6;
         }
-        .error { color: #ff6b6b; font-weight: bold; }
+        .error { color: #ff4d4d; }
     </style>
 </head>
 <body>
-    <div id="status">جاري إيقاظ المحرك...</div>
+    <div id="status">جاري فحص المحرك والاتصال بالسيرفر...</div>
     <div id="pano"></div>
 
     <script>
@@ -32,53 +32,51 @@
         function start() {
             const label = document.getElementById('status');
 
-            // 1. التأكد من أن المحرك موجود فعلاً في ذاكرة المتصفح
-            if (typeof window.Marzipano === 'undefined') {
-                label.innerHTML = "<span class='error'>عفواً.. المحرك تائه في الطريق!</span><br>جاري إعادة المحاولة خلال ثواني...";
+            // 1. التأكد من أن المحرك وكل ملحقاته جاهزة
+            if (typeof Marzipano === 'undefined') {
+                label.innerHTML = "<span class='error'>المحرك لسه مجاش!</span><br>جاري المحاولة مرة تانية...";
                 setTimeout(start, 2000);
                 return;
             }
 
-            label.innerText = "المحرك استيقظ! جاري جلب صورتك الـ 360...";
+            label.innerText = "المحرك جاهز! جاري سحب بياناتك من سوبابيز...";
 
             const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
             _supabase.from('scenes').select('*').limit(1).single()
             .then(({ data, error }) => {
                 if (error) throw error;
-                if (!data) {
-                    label.innerHTML = "الخزنة فاضية! ضيف صف في جدول scenes";
-                    return;
-                }
+                if (!data) throw new Error("مفيش بيانات في جدول scenes");
 
-                label.innerText = "جاري إنشاء العالم الافتراضي...";
+                label.innerText = "جاري تحويل الصورة لـ 360 درجة...";
 
-                // استخدام window.Marzipano لضمان الوصول المباشر
-                const viewer = new window.Marzipano.Viewer(document.getElementById('pano'));
+                // --- الجزء السحري الجديد (بدون استخدام كلمة create الملعونة) ---
+                const viewer = new Marzipano.Viewer(document.getElementById('pano'));
                 
-                const source = window.Marzipano.Source.create({
-                    type: 'image',
-                    url: data.image_url
-                });
-
-                const geometry = new window.Marzipano.EquirectGeometry([{ width: 4000 }]);
-                const view = new window.Marzipano.RectilinearView({ 
+                // هنستخدم الطريقة المباشرة لتعريف الصورة
+                const source = new Marzipano.ImageUrlSource.withSimpleUrl(data.image_url);
+                const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
+                const view = new Marzipano.RectilinearView({ 
                     yaw: data.initial_yaw || 0, 
                     pitch: data.initial_pitch || 0 
                 });
 
-                const scene = viewer.createScene({ source, geometry, view });
-                scene.switchTo();
+                const scene = viewer.createScene({
+                    source: source,
+                    geometry: geometry,
+                    view: view
+                });
 
+                scene.switchTo();
                 label.style.display = 'none';
+                // ------------------------------------------------------------
             })
             .catch(err => {
-                label.innerHTML = "<span class='error'>حدث خطأ:</span><br>" + err.message;
-                console.error(err);
+                label.innerHTML = "<span class='error'>حصلت مشكلة:</span><br>" + err.message;
+                console.error("Debug Error:", err);
             });
         }
 
-        // الانتظار حتى تحميل الصفحة بالكامل
         window.onload = start;
     </script>
 </body>
