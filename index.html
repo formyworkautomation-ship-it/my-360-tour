@@ -3,66 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مشروع الجولة الجبار - نسخة التصحيح</title>
-    <script src="https://www.marzipano.net/marzipano.js"></script>
+    <title>مشروع الجولة الجبار</title>
+    <!-- روابط المحركات من مصادر عالمية سريعة -->
+    <script src="https://cdn.jsdelivr.net/npm/marzipano@0.10.2/dist/marzipano.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body, html, #pano { height: 100%; margin: 0; overflow: hidden; background: #111; }
+        body, html, #pano { height: 100%; margin: 0; overflow: hidden; background: #000; }
         #status { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            color: white; font-family: Arial, sans-serif; text-align: center; z-index: 10;
-            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px;
+            color: white; font-family: sans-serif; text-align: center; z-index: 10;
+            background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;
         }
     </style>
 </head>
 <body>
-    <div id="status">جاري الاتصال بقاعدة البيانات...</div>
+    <div id="status">جاري تشغيل المنظومة...</div>
     <div id="pano"></div>
 
     <script>
+        // مفاتيح الربط الخاصة بك
         const SUPABASE_URL = 'https://ejvnmawlifhdytktdzer.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqdm5tYXdsaWZoZHl0a3RkemVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzA3MTksImV4cCI6MjA5NjQ0NjcxOX0.KmcecpPi4gl453z0hVmF8Ma5CHYLYJ5SU4uDWJrEbzQ';
-        
-        // ربط صحيح ومؤمن
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function start() {
             const statusLabel = document.getElementById('status');
             
+            // التأكد من أن المكتبات حملت تماماً
+            if (typeof Marzipano === 'undefined' || typeof supabase === 'undefined') {
+                statusLabel.innerText = "جاري تحميل المكتبات من الإنترنت... جرب تحديث الصفحة";
+                return;
+            }
+
+            const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
             try {
-                // 1. محاولة جلب البيانات
-                statusLabel.innerText = "جاري سحب بيانات الغرفة...";
+                statusLabel.innerText = "جاري سحب بيانات الصورة من سوبابيز...";
                 const { data, error } = await _supabase.from('scenes').select('*').limit(1).single();
 
                 if (error) throw error;
                 if (!data) {
-                    statusLabel.innerHTML = "الجدول فاضي! <br> روح لـ Supabase وضيف صف جديد (Row) في جدول scenes";
+                    statusLabel.innerHTML = "الجدول فاضي! <br> ضيف بيانات في جدول scenes";
                     return;
                 }
 
-                statusLabel.innerText = "تم العثور على الصورة، جاري التحميل...";
+                statusLabel.innerText = "جاري معالجة الصورة 360...";
 
-                // 2. إعداد العارض
                 const viewer = new Marzipano.Viewer(document.getElementById('pano'));
-                const source = Marzipano.Source.create({ type: 'image', url: data.image_url });
+                const source = Marzipano.Source.create({ 
+                    type: 'image', 
+                    url: data.image_url 
+                });
                 const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
-                const view = new Marzipano.RectilinearView({ yaw: data.initial_yaw || 0, pitch: data.initial_pitch || 0 });
+                const view = new Marzipano.RectilinearView({ 
+                    yaw: data.initial_yaw || 0, 
+                    pitch: data.initial_pitch || 0 
+                });
 
                 const scene = viewer.createScene({ source, geometry, view });
+                scene.switchTo();
                 
-                // التأكد من تحميل الصورة
-                scene.switchTo(() => {
-                    statusLabel.style.display = 'none';
-                    console.log("تم التحميل بنجاح!");
-                });
+                // إخفاء رسالة التحميل فور ظهور الصورة
+                setTimeout(() => { statusLabel.style.display = 'none'; }, 1000);
 
             } catch (err) {
                 console.error(err);
-                statusLabel.innerHTML = "حصلت مشكلة: <br>" + (err.message || "تأكد من إعدادات الـ Storage والـ RLS");
+                statusLabel.innerHTML = "حدث خطأ: " + err.message;
             }
         }
 
-        start();
+        // تشغيل الدالة بمجرد تحميل الصفحة
+        window.onload = start;
     </script>
 </body>
 </html>
