@@ -1,89 +1,65 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منظومة الجولة - نسخة الحسم النهائي</title>
+    <meta charset="utf-8">
+    <title>العودة للمنظومة</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     
-    <!-- روابط المحرك الأساسية -->
+    <!-- روابط المحرك من الموقع الرسمي مباشرة كما كانت في مشروعك القديم -->
+    <script src="https://www.marzipano.net/demos/common/es5-shim.js"></script>
     <script src="https://www.marzipano.net/marzipano.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         body, html, #pano { height: 100%; margin: 0; overflow: hidden; background: #000; }
-        #status { 
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            color: white; font-family: sans-serif; text-align: center; z-index: 100;
-            background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px; border: 2px solid #333;
+        #overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); color: white; display: flex; 
+            align-items: center; justify-content: center; z-index: 1000;
+            font-family: sans-serif; text-align: center;
         }
-        .error-msg { color: #ff4d4d; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="status">جاري تشغيل المنظومة الاحترافية...</div>
+    <div id="overlay">جاري محاولة تشغيل الصورة...</div>
     <div id="pano"></div>
 
     <script>
         const SUPABASE_URL = 'https://ejvnmawlifhdytktdzer.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqdm5tYXdsaWZoZHl0a3RkemVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzA3MTksImV4cCI6MjA5NjQ0NjcxOX0.KmcecpPi4gl453z0hVmF8Ma5CHYLYJ5SU4uDWJrEbzQ';
 
-        async function startEngine() {
-            const label = document.getElementById('status');
+        function initApp() {
+            const overlay = document.getElementById('overlay');
 
-            // 1. فحص وجود المحرك (بدون شروط معقدة)
-            if (typeof window.Marzipano === 'undefined') {
-                label.innerHTML = "<span class='error-msg'>المحرك لم يتحمل بعد..</span><br>تأكد من اتصال الإنترنت أو جرب متصفح Chrome.";
+            // فحص وجود المحرك
+            if (typeof Marzipano === 'undefined') {
+                overlay.innerHTML = "المحرك لسه مش راضي يوصل..<br>جاري المحاولة خلال ثواني...";
+                setTimeout(initApp, 2000);
                 return;
             }
 
-            label.innerText = "المحرك جاهز.. جاري سحب صورتك الـ 360...";
+            const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-            try {
-                const { data, error } = await _supabase.from('scenes').select('*').limit(1).single();
+            client.from('scenes').select('*').limit(1).single()
+            .then(({ data, error }) => {
                 if (error) throw error;
-                if (!data) {
-                    label.innerHTML = "الجدول فاضي! ضيف بيانات في Supabase.";
-                    return;
-                }
-
-                label.innerText = "جاري رسم العالم الافتراضي...";
-
-                // --- الحل الجذري: استخدام الـ Constructors المباشرة بدلاً من .create ---
+                
                 const viewer = new Marzipano.Viewer(document.getElementById('pano'));
-                
-                // بديل لـ Marzipano.Source.create
-                const source = new Marzipano.ImageUrlSource(function(tile) {
-                    return { url: data.image_url };
-                });
-
-                // بديل لـ Marzipano.EquirectGeometry
+                const source = Marzipano.Source.create({ type: 'image', url: data.image_url });
                 const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
-                
                 const view = new Marzipano.RectilinearView({ yaw: 0, pitch: 0 });
 
-                const scene = viewer.createScene({
-                    source: source,
-                    geometry: geometry,
-                    view: view
-                });
-
+                const scene = viewer.createScene({ source, geometry, view });
                 scene.switchTo();
                 
-                // إخفاء رسالة التحميل
-                label.style.display = 'none';
-
-            } catch (err) {
-                console.error(err);
-                label.innerHTML = "<span class='error-msg'>مشكلة في البيانات:</span><br>" + err.message;
-            }
+                overlay.style.display = 'none';
+            })
+            .catch(err => {
+                overlay.innerHTML = "حدث خطأ في البيانات: " + err.message;
+            });
         }
 
-        // تشغيل المنظومة بعد ثانية واحدة لضمان استقرار كل شيء
-        window.onload = () => {
-            setTimeout(startEngine, 1000);
-        };
+        window.onload = initApp;
     </script>
 </body>
 </html>
