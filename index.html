@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منظومة الجولة الاحترافية</title>
+    <title>منظومة الجولة الجبارة - النسخة القاتلة</title>
     
-    <!-- تحميل المحرك من رابط مباشر ومستقر جداً -->
-    <script src="https://www.marzipano.net/demos/common/marzipano.js"></script>
+    <!-- تحميل المحرك من مصدر عالمي ومستقر جداً (Unpkg) -->
+    <script src="https://unpkg.com/marzipano@0.10.2/dist/marzipano.js"></script>
+    <!-- تحميل مكتبة سوبابيز -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -14,54 +15,54 @@
         #status { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             color: white; font-family: sans-serif; text-align: center; z-index: 10;
-            background: rgba(0,0,0,0.85); padding: 25px; border-radius: 15px;
-            border: 1px solid #444; min-width: 250px;
+            background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px;
+            border: 2px solid #555;
         }
+        .error { color: #ff6b6b; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="status">جاري تشغيل المحرك الجبار...</div>
+    <div id="status">جاري إيقاظ المحرك...</div>
     <div id="pano"></div>
 
     <script>
-        // مفاتيحك الخاصة
         const SUPABASE_URL = 'https://ejvnmawlifhdytktdzer.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqdm5tYXdsaWZoZHl0a3RkemVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzA3MTksImV4cCI6MjA5NjQ0NjcxOX0.KmcecpPi4gl453z0hVmF8Ma5CHYLYJ5SU4uDWJrEbzQ';
 
-        async function init() {
+        function start() {
             const label = document.getElementById('status');
 
-            // تأمين: التأكد من أن Marzipano جاهز تماماً وبكل أدواته
-            if (typeof Marzipano === 'undefined' || !Marzipano.Viewer) {
-                label.innerText = "خطأ: المحرك لم يكتمل تحميله. جاري المحاولة مرة أخرى...";
-                setTimeout(init, 1000); // إعادة محاولة بعد ثانية
+            // 1. التأكد من أن المحرك موجود فعلاً في ذاكرة المتصفح
+            if (typeof window.Marzipano === 'undefined') {
+                label.innerHTML = "<span class='error'>عفواً.. المحرك تائه في الطريق!</span><br>جاري إعادة المحاولة خلال ثواني...";
+                setTimeout(start, 2000);
                 return;
             }
 
+            label.innerText = "المحرك استيقظ! جاري جلب صورتك الـ 360...";
+
             const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            try {
-                label.innerText = "جاري الاتصال بـ Supabase...";
-                const { data, error } = await _supabase.from('scenes').select('*').limit(1).single();
-
+            _supabase.from('scenes').select('*').limit(1).single()
+            .then(({ data, error }) => {
                 if (error) throw error;
                 if (!data) {
-                    label.innerHTML = "الخزنة فاضية! <br> ضيف بيانات في سوبابيز الأول.";
+                    label.innerHTML = "الخزنة فاضية! ضيف صف في جدول scenes";
                     return;
                 }
 
-                label.innerText = "جاري رسم عالمك الـ 360...";
+                label.innerText = "جاري إنشاء العالم الافتراضي...";
 
-                const viewer = new Marzipano.Viewer(document.getElementById('pano'));
+                // استخدام window.Marzipano لضمان الوصول المباشر
+                const viewer = new window.Marzipano.Viewer(document.getElementById('pano'));
                 
-                // الطريقة المباشرة لإنشاء المصدر لضمان عدم حدوث خطأ 'create'
-                const source = Marzipano.Source.create({
+                const source = window.Marzipano.Source.create({
                     type: 'image',
                     url: data.image_url
                 });
 
-                const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
-                const view = new Marzipano.RectilinearView({ 
+                const geometry = new window.Marzipano.EquirectGeometry([{ width: 4000 }]);
+                const view = new window.Marzipano.RectilinearView({ 
                     yaw: data.initial_yaw || 0, 
                     pitch: data.initial_pitch || 0 
                 });
@@ -70,15 +71,15 @@
                 scene.switchTo();
 
                 label.style.display = 'none';
-
-            } catch (err) {
+            })
+            .catch(err => {
+                label.innerHTML = "<span class='error'>حدث خطأ:</span><br>" + err.message;
                 console.error(err);
-                label.innerHTML = "عفواً، حصلت مشكلة: <br>" + err.message;
-            }
+            });
         }
 
-        // الانتظار حتى يتم تحميل كل شيء في الصفحة
-        window.onload = init;
+        // الانتظار حتى تحميل الصفحة بالكامل
+        window.onload = start;
     </script>
 </body>
 </html>
